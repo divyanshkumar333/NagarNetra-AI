@@ -1,24 +1,61 @@
-# NagarNetra AI Architecture
+# Architecture
 
-NagarNetra AI relies on a heavily decoupled, front-end intensive architecture designed to demonstrate enterprise scalability without requiring a complex backend setup for the hackathon.
+NagarNetra AI relies on a heavily decoupled frontend and backend architecture, connected via REST APIs and WebSockets, utilizing a highly optimized 3D rendering pipeline for the browser.
 
-## Core Pillars
+## High-Level System Diagram
 
-1. **Feature-Sliced Design (FSD)**
-   The `/src/features` directory isolates modules (Telemetry, AI Engine, Dashboard, Simulation, Digital Twin). Each feature manages its own State (Zustand), UI components, and types. This prevents monolithic UI logic and makes future backend connections extremely modular.
+```mermaid
+graph TD
+    subgraph Frontend [Next.js Client]
+        UI[React UI Components]
+        Store[Zustand State Manager]
+        DT[Digital Twin Engine]
+        
+        UI <--> Store
+        DT <--> Store
+    end
 
-2. **Decoupled State Management**
-   Zustand is used to manage massive multi-store global states without React Context re-render penalties.
-   - `useTelemetryStore`: Ingests sensor data.
-   - `useAIEngineStore`: Acts on telemetry thresholds to run analysis.
-   - `useSimulationStore`: Overrides telemetry for crisis scenarios.
-   - `useDigitalTwinStore`: Maps the logical state to the 3D WebGL render.
+    subgraph Backend [FastAPI Server]
+        API[REST API / Endpoints]
+        AI[AI Reasoning Engine]
+        Telemetry[Mock Telemetry Generator]
+        
+        API <--> AI
+        API <--> Telemetry
+    end
 
-3. **Abstracted Data Providers**
-   The Telemetry layer utilizes a `Provider` interface. Currently, `MockTelemetryProvider.ts` is injected, which continuously polls synthetic data. In production, this can be swapped identically with `KafkaTelemetryProvider.ts` without touching any UI code.
+    Frontend <-->|HTTP / WebSocket| Backend
+```
 
-4. **Procedural Rendering Engine**
-   The Digital Twin (React Three Fiber) does not load large assets. Instead, it reads the `useDigitalTwinStore` state and procedurally builds roads, vehicles, and weather geometry on the fly. This ensures sub-second load times and infinite scalability.
+## Digital Twin Engine (React Three Fiber)
 
-5. **Motion & UX Subsystems**
-   Framer Motion governs all routing transitions and component unmounting. `sonner` manages the global Notification Bus, and `cmdk` handles cross-cutting user commands.
+The centerpiece of NagarNetra AI is the 3D Digital Twin, running natively in the browser via WebGL. 
+To achieve 60 FPS while rendering thousands of dynamic entities, we utilize the following optimization strategies:
+
+1. **Procedural Graph Generation (`useCityEngine.ts`)**
+   - The city is represented mathematically as a Directed Graph of nodes (intersections) and edges (roads).
+   - Splines are calculated once at initialization to determine smooth paths for vehicles.
+2. **`InstancedMesh` Rendering**
+   - Rather than rendering 600 individual vehicle `Mesh` components, we use a single `InstancedMesh` for each vehicle type (Sedan, SUV, Bus, Truck, Emergency).
+   - In the `useFrame` loop, we manipulate a `Dummy Object3D` and update the transformation matrix buffer directly in memory. This skips React's reconciliation process entirely for vehicle positions, yielding massive performance gains.
+3. **No External Asset Dependencies**
+   - All geometries (Buildings, Roads, Vehicles) are built procedurally using Three.js primitives (`BoxGeometry`, `PlaneGeometry`, `CylinderGeometry`).
+   - This eliminates network latency associated with downloading large `.glb` files and reduces the bundle size significantly.
+
+## AI Reasoning Engine
+
+The AI backend does not operate as a standard "chatbot." It functions as an **Agentic Workflow Pipeline**:
+- **Observe**: Collects telemetry across 12 infrastructure systems.
+- **Analyze**: Detects statistical anomalies (e.g., congestion spikes, anomalous power draw).
+- **Predict**: Forecasts downstream impact (e.g., predicted gridlock in 15 minutes).
+- **Recommend**: Formulates concrete, actionable mitigations.
+- **Simulate**: Tests the recommendation against the Digital Twin models.
+- **Execute**: Modifies state upon operator approval.
+- **Learn**: Persists the outcome to improve future confidence scoring.
+
+## State Management
+
+We use `Zustand` to orchestrate global state cleanly without prop drilling. 
+The state is intentionally split to prevent unnecessary re-renders:
+- `useDigitalTwinStore`: Manages the camera preset, time of day, weather, and selected 3D entities.
+- `useAIEngineStore`: Manages the AI reasoning pipeline stage, active hotspots, and incoming recommendations.

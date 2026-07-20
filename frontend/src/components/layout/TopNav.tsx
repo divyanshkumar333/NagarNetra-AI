@@ -1,14 +1,31 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { Search, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const ROUTE_NAMES: Record<string, string> = {
+  "/": "Digital Twin",
+  "/dashboard": "Dashboard",
+  "/traffic": "Traffic Control",
+  "/incidents": "Incidents & Dispatch",
+  "/ai-studio": "AI Neural Studio",
+  "/simulation": "Simulation Rig",
+  "/analytics": "Analytics",
+  "/settings": "Settings",
+};
+
 export function TopNav() {
+  const pathname = usePathname();
+  const pageName = ROUTE_NAMES[pathname] || "Dashboard";
+
   return (
     <header className="h-16 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-4 flex-1">
-        <div className="text-sm text-muted-foreground flex items-center gap-2">
+        <div className="text-sm text-muted-foreground flex items-center gap-2 font-mono">
           <span>Command Center</span>
           <span className="text-border">/</span>
-          <span className="text-foreground font-medium">Dashboard</span>
+          <span className="text-foreground font-medium">{pageName}</span>
         </div>
       </div>
       

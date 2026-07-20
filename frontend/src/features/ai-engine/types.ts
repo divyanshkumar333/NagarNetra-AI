@@ -79,6 +79,9 @@ export interface CityHealth {
     emergencyResponse: number;
     incidents: number;
     weather: number;
+    infrastructure?: number;
+    safety?: number;
+    environment?: number;
   };
 }
 

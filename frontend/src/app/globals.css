@@ -112,8 +112,53 @@
 
 /* Glassmorphism Utilities */
 .glass-panel {
-  @apply bg-background/60 backdrop-blur-md border border-white/10 shadow-lg;
+  @apply bg-background/65 backdrop-blur-lg border border-white/10 shadow-xl;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-card {
-  @apply bg-card/60 backdrop-blur-sm border border-white/5 shadow-md;
+  @apply bg-card/60 backdrop-blur-md border border-white/5 shadow-md;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium Apple/Palantir Glass Effect */
+.glass-premium {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.45) 0%, rgba(2, 6, 23, 0.7) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom transitions and animations */
+.apple-transition {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* micro-animations */
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.97);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 3s ease-in-out infinite;
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scanline {
+  animation: scanline 6s linear infinite;
 }

@@ -1,6 +1,5 @@
-import { DashboardContainer } from "@/features/dashboard/DashboardContainer";
+import { DigitalTwinContainer } from "@/features/digital-twin/DigitalTwinContainer";
 
-export default function DashboardPage() {
-  return <DashboardContainer />;
+export default function RootPage() {
+  return <DigitalTwinContainer />;
 }
-

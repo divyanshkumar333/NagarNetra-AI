@@ -1,44 +1,33 @@
-import { useMemo, useRef, useLayoutEffect, useState, useEffect } from "react";
+import { useMemo, useRef, useLayoutEffect } from "react";
 import * as THREE from "three";
-import { useCityGenerator } from "./useCityGenerator";
+import { useFrame } from "@react-three/fiber";
+import { cityData } from "./useCityEngine";
+import { lightTimers } from "./TrafficSystem";
 import { useDigitalTwinStore } from "./useDigitalTwinStore";
 
 const dummy = new THREE.Object3D();
-const color = new THREE.Color();
+const colorObj = new THREE.Color();
 
 export function TrafficLights() {
-  const { roads } = useCityGenerator();
   const timeOfDay = useDigitalTwinStore((state) => state.timeOfDay);
   const isNight = timeOfDay === "night";
   
-  // Extract intersections from roads data (approximated for demo)
+  // Extract all nodes (intersections) directly from the 20x20 city grid
   const intersections = useMemo(() => {
-    return roads.filter(r => r.scale[0] === 12 && r.scale[2] === 12);
-  }, [roads]);
-
-  const [state, setState] = useState<"green" | "yellow" | "red">("green");
-
-  // Cycle lights
-  useEffect(() => {
-    const cycle = () => {
-      setState("yellow");
-      setTimeout(() => setState("red"), 3000);
-      setTimeout(() => setState("green"), 8000);
-    };
-    const interval = setInterval(cycle, 12000);
-    return () => clearInterval(interval);
+    return Array.from(cityData.nodes.values());
   }, []);
 
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const bulbRef = useRef<THREE.InstancedMesh>(null);
   
-  const lightColor = state === "green" ? "#22c55e" : state === "yellow" ? "#eab308" : "#ef4444";
   const dimColor = isNight ? "#1e293b" : "#475569";
 
+  // Update light pole positions once
   useLayoutEffect(() => {
     if (meshRef.current) {
-      intersections.forEach((intersection, i) => {
+      intersections.forEach((node, i) => {
         // Place a light pole slightly offset from the intersection
-        dummy.position.set(intersection.position[0] - 8, 4, intersection.position[2] - 8);
+        dummy.position.set(node.pos.x - 8, 4, node.pos.z - 8);
         dummy.scale.set(1, 8, 1);
         dummy.updateMatrix();
         meshRef.current!.setMatrixAt(i, dummy.matrix);
@@ -47,22 +36,38 @@ export function TrafficLights() {
     }
   }, [intersections]);
 
-  // We will render two instanced meshes: the poles, and the light bulbs
-  const bulbRef = useRef<THREE.InstancedMesh>(null);
-
-  useLayoutEffect(() => {
+  // Sync visual light bulbs with the real-time AI traffic timers in useFrame
+  useFrame(() => {
     if (bulbRef.current) {
-      intersections.forEach((intersection, i) => {
-        dummy.position.set(intersection.position[0] - 8, 7.5, intersection.position[2] - 7);
+      intersections.forEach((node, i) => {
+        // Position the bulb on top of the pole
+        dummy.position.set(node.pos.x - 8, 7.5, node.pos.z - 7);
         dummy.scale.set(1.5, 1.5, 1.5);
         dummy.updateMatrix();
         bulbRef.current!.setMatrixAt(i, dummy.matrix);
-        bulbRef.current!.setColorAt(i, color.set(lightColor));
+
+        // Fetch this intersection's timer
+        const lt = lightTimers.get(node.id);
+        let activeColor = "#ef4444"; // Default Red
+
+        if (lt) {
+          // If horizontal axis is green, horizontal gets green, vertical gets red.
+          // For visual simplicity, we toggle green/red cycles in sync with vehicles.
+          if (lt.activeAxis === 'h') {
+            activeColor = lt.timer < 60 ? "#eab308" : "#22c55e"; // Yellow vs Green
+          } else {
+            activeColor = lt.timer < 60 ? "#eab308" : "#ef4444"; // Yellow vs Red
+          }
+        }
+
+        bulbRef.current!.setColorAt(i, colorObj.set(activeColor));
       });
       bulbRef.current.instanceMatrix.needsUpdate = true;
-      if (bulbRef.current.instanceColor) bulbRef.current.instanceColor.needsUpdate = true;
+      if (bulbRef.current.instanceColor) {
+        bulbRef.current.instanceColor.needsUpdate = true;
+      }
     }
-  }, [intersections, lightColor]);
+  });
 
   return (
     <group>
@@ -76,9 +81,8 @@ export function TrafficLights() {
       <instancedMesh ref={bulbRef} args={[undefined, undefined, intersections.length]}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial 
-          color={lightColor}
-          emissive={lightColor}
-          emissiveIntensity={2}
+          roughness={0.2}
+          metalness={0.8}
           toneMapped={false}
         />
       </instancedMesh>

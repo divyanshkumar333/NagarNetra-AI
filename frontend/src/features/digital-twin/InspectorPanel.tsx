@@ -25,7 +25,7 @@ export function InspectorPanel() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 300 }}
           transition={{ type: "spring", damping: 20, stiffness: 200 }}
-          className="absolute right-4 top-4 bottom-4 w-80 glass-panel border border-border/50 rounded-lg flex flex-col z-10 overflow-hidden shadow-2xl"
+          className="absolute right-4 top-4 bottom-4 w-80 glass-premium border border-border/50 rounded-lg flex flex-col z-10 overflow-hidden shadow-2xl"
         >
           <div className="p-4 border-b border-border/50 bg-background/80 backdrop-blur flex justify-between items-center">
             <div className="flex items-center gap-2">

@@ -1,15 +1,23 @@
 @echo off
 setlocal
+echo Shutting down NagarNetra AI...
 
-echo Stopping NagarNetra AI Services...
+:: Find and kill process on port 3000 (Frontend)
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000') do (
+    if "%%a" NEQ "0" (
+        echo Killing Frontend (PID %%a)...
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
 
-:: Stop Backend (uvicorn / python)
-echo Killing Python backend processes...
-taskkill /F /IM python.exe /T 2>NUL
+:: Find and kill process on port 8000 (Backend)
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000') do (
+    if "%%a" NEQ "0" (
+        echo Killing Backend (PID %%a)...
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
 
-:: Stop Frontend (node)
-echo Killing Node frontend processes...
-taskkill /F /IM node.exe /T 2>NUL
-
-echo Services stopped successfully.
+echo.
+echo Shutdown complete.
 pause

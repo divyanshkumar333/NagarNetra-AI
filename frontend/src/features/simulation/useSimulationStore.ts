@@ -120,20 +120,23 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDefinition) {
   const addEvent = get().addTimelineEvent;
   const { injectTelemetry, triggerPipeline, simulateRecommendation, approveRecommendation } = useAIEngineStore.getState();
-  const { setWeather, triggerIncident, toggleHeatmaps } = useDigitalTwinStore.getState();
+  const { setWeather, triggerIncident, toggleHeatmaps, setCameraPreset, setFollowTarget } = useDigitalTwinStore.getState();
 
   const delay = (ms: number) => new Promise(r => setTimeout(r, ms / get().speed));
 
   // 1. Initial State
+  setCameraPreset("skyline");
   addEvent({ title: "City Healthy", description: "City metrics operating within normal parameters.", category: "observation" });
   await delay(2000);
 
   // 2. Escalate based on scenario
+  setCameraPreset("downtown");
   addEvent({ title: "Rush Hour Begins", description: "Traffic density increasing steadily.", category: "observation" });
   injectTelemetry({ congestion: { "Main Junction": 60, "North Ave": 55 }, vehicleCounts: { "Main Junction": 300, "North Ave": 250 } });
   await delay(2000);
 
   if (scenario.id === "sc-rush-accident") {
+    setCameraPreset("incident");
     addEvent({ title: "Major Accident Detected", description: "Collision at Main Junction. Northbound lanes blocked.", category: "outcome" });
     toast.error("Major Accident Detected", { description: "Collision at Main Junction. Northbound lanes blocked." });
     triggerIncident("accident");
@@ -143,11 +146,13 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
       emergencyVehiclesActive: 3
     });
   } else if (scenario.id === "sc-heavy-rain") {
+    setCameraPreset("intersection");
     addEvent({ title: "Heavy Rain Started", description: "Visibility dropping. Congestion compounding.", category: "outcome" });
     toast.warning("Weather Alert: Heavy Rain", { description: "Visibility dropping. Congestion compounding." });
     setWeather("rain");
     injectTelemetry({ weather: "rain", congestion: { "Main Junction": 85, "North Ave": 80 } });
   } else if (scenario.id === "sc-vip-convoy") {
+    setCameraPreset("traffic");
     addEvent({ title: "VIP Convoy En Route", description: "Convoy approaching city limits.", category: "observation" });
     toast.info("Security Alert: VIP Convoy", { description: "Convoy approaching city limits." });
     injectTelemetry({ emergencyVehiclesActive: 5, congestion: { "Main Junction": 90 } });
@@ -155,6 +160,7 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
   await delay(1500);
 
   // 3. AI Detection
+  setCameraPreset("ai-focus");
   addEvent({ title: "AI Pipeline Triggered", description: "Abnormal telemetry detected. Commencing analysis.", category: "ai" });
   toggleHeatmaps(); // show visual hotspots in 3D
   
@@ -178,6 +184,7 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
     await approveRecommendation(recId);
     
     // 5. Resolution
+    setFollowTarget("emergency"); // Smoothly track the emergency response vehicle
     addEvent({ title: "Executing Changes", description: "Traffic signals synchronized. Emergency vehicles rerouted.", category: "action" });
     injectTelemetry({ 
       congestion: { "Main Junction": 50, "North Ave": 40 }, 
@@ -188,9 +195,12 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
     toggleHeatmaps();
     
     await delay(2000);
+    setFollowTarget("none");
+    setCameraPreset("traffic");
     addEvent({ title: "Traffic Stabilized", description: "City health returning to optimal levels.", category: "outcome" });
     
     await delay(2000);
+    setCameraPreset("skyline");
     toast.success("Simulation Complete", { description: "City metrics stabilized. Recommendations logged." });
     // End Simulation
     get().finishSimulation({

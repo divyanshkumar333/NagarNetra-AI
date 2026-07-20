@@ -4,6 +4,8 @@ import { useDigitalTwinStore } from "./useDigitalTwinStore";
 import { ProceduralCity } from "./ProceduralCity";
 import { TrafficSystem } from "./TrafficSystem";
 import { TrafficLights } from "./TrafficLights";
+import { PedestrianSystem } from "./PedestrianSystem";
+import { AIDrone } from "./AIDrone";
 
 export function Scene() {
   const timeOfDay = useDigitalTwinStore((state) => state.timeOfDay);
@@ -61,6 +63,8 @@ export function Scene() {
       <group position={[0, -0.5, 0]}>
         <ProceduralCity />
         <TrafficSystem />
+        <PedestrianSystem />
+        <AIDrone />
         <TrafficLights />
       </group>
     </>

@@ -1,26 +1,29 @@
-# AI Workflow Pipeline
+# The AI Reasoning Engine
 
-The core intelligence of NagarNetra AI is a continuous OODA-style loop (Observe, Orient, Decide, Act), implemented specifically for Smart City orchestration.
+Unlike conventional chatbots, NagarNetra AI is powered by an autonomous, six-step reasoning pipeline designed for mission-critical urban operations.
 
-## The Pipeline
+## The 6-Step Pipeline
 
-1. **Observe**
-   The AI connects to the `TelemetryProvider`. It listens for spikes in IoT sensors, abnormal weather patterns, or active 911 dispatch calls. It normalizes this data into a continuous `CityHealthScore`.
+1. **Observe (Data Ingestion)**
+   - The AI acts as a central nervous system, continuously monitoring telemetry across thousands of simulated edge sensors (Traffic Cameras, Weather Stations, Flood Detectors).
+   - This phase is visualized in the real-time Digital Twin and Telemetry Dashboard.
 
-2. **Analyze**
-   When thresholds are breached (e.g., Congestion > 85%), the pipeline triggers. The AI cross-references the event location with surrounding nodes (Traffic Cameras, Bridges) to assess severity.
+2. **Analyze (Anomaly Detection)**
+   - The engine establishes baselines for nominal operations. 
+   - When a threshold is breached (e.g., traffic density spikes by 40% on Main St, or a severe weather alert is registered), the AI flags a high-priority "Hotspot."
 
-3. **Predict**
-   The prediction engine extrapolates the current state 30 minutes into the future. If a blocked lane is observed, it calculates the gridlock ripple effect on adjacent sectors.
+3. **Predict (Forecasting)**
+   - Using mock predictive models, the AI calculates the cascading downstream effects. 
+   - *Example:* "An accident on Route 4 will cause severe gridlock in the downtown financial district within 15 minutes if unmitigated."
 
-4. **Simulate**
-   Before making a recommendation, the AI tests multiple mitigation strategies in an isolated sandbox (e.g., `Strategy A: Reroute 15% traffic`, `Strategy B: Optimize Signals to 90s Green`).
+4. **Recommend (Mitigation Generation)**
+   - The AI generates multi-faceted recommendations (e.g., dynamically altering traffic light timings, dispatching emergency units, re-routing public transit).
+   - Each recommendation is assigned a **Confidence Score (%), Risk Level, Estimated Time Saved, and Carbon Reduction metric**.
 
-5. **Recommend**
-   The best performing strategy is surfaced to the human operator in the AI Studio or Command Dashboard, complete with Confidence Score, Expected Impact (Time Saved, Carbon Reduced), and a detailed reasoning breakdown.
+5. **Simulate (Digital Twin Validation)**
+   - Before any recommendation is executed, operators can click **"Simulate"**.
+   - This triggers the Crisis Simulation Engine, visually demonstrating the "Before" and "After" effects on the 3D Digital Twin, allowing for risk-free validation.
 
-6. **Execute**
-   Once the operator approves (or automatically in Demo Mode), the system dispatches commands back to the IoT layer to physically alter signal light timings and dispatch emergency services.
-
-7. **Learn**
-   The system logs the outcome in the Decision Log, simulating a reinforcement learning loop where successful mitigation strategies increase the confidence score of similar future recommendations.
+6. **Execute & Learn (State Modification)**
+   - Upon operator approval, the engine applies the changes to the city state.
+   - The outcome is recorded to improve future confidence scoring, demonstrating continuous learning.
