@@ -18,8 +18,8 @@ cd backend
 
 if not exist venv (
     echo Creating Python virtual environment...
-    python -m venv venv
-    if %ERRORLEVEL% NEQ 0 (
+    python -m venv venv >nul 2>&1 || py -m venv venv
+    if errorlevel 1 (
         echo %RED%Failed to create virtual environment. Ensure Python is installed.%RESET%
         exit /b 1
     )
@@ -46,7 +46,7 @@ cd frontend
 if not exist node_modules (
     echo Installing npm dependencies...
     call npm install
-    if %ERRORLEVEL% NEQ 0 (
+    if errorlevel 1 (
         echo %RED%Failed to install npm dependencies. Ensure Node.js is installed.%RESET%
         exit /b 1
     )
