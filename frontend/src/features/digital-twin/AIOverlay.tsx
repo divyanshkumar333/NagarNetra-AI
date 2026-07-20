@@ -1,11 +1,12 @@
 import { useDigitalTwinStore } from "./useDigitalTwinStore";
+import { useAIEngineStore } from "../ai-engine/useAIEngineStore";
 import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 
 export function AIOverlay() {
   const heatmapsEnabled = useDigitalTwinStore((state) => state.heatmapsEnabled);
-  const activeIncident = useDigitalTwinStore((state) => state.activeIncident);
+  const hotspots = useAIEngineStore((state) => state.hotspots);
   
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
 
@@ -32,20 +33,20 @@ export function AIOverlay() {
         </mesh>
       )}
 
-      {/* Incident Marker */}
-      {activeIncident && (
-        <mesh position={[-100, 1, -60]}>
+      {/* Dynamic AI Hotspots */}
+      {heatmapsEnabled && hotspots.map((hotspot) => (
+        <mesh key={hotspot.id} position={[hotspot.location[0], 1, hotspot.location[1]]}>
           <cylinderGeometry args={[15, 15, 20, 32]} />
           <meshStandardMaterial 
             color="#ef4444" 
             emissive="#ef4444"
             emissiveIntensity={2}
             transparent
-            opacity={0.6}
+            opacity={0.6 * (hotspot.severity / 100)}
             wireframe
           />
         </mesh>
-      )}
+      ))}
     </group>
   );
 }

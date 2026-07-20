@@ -8,9 +8,10 @@ import { TrafficOverview } from "./TrafficOverview";
 import { AIRecommendations } from "./AIRecommendations";
 import { IncidentTimeline } from "./IncidentTimeline";
 import { AnalyticsCharts } from "./AnalyticsCharts";
+import { SimulationModal } from "../ai-engine/SimulationModal";
 
 export function DashboardContainer() {
-  const { kpis, recommendations, incidents, chartData } = useDashboardData();
+  const { kpis, incidents, chartData } = useDashboardData();
 
   return (
     <motion.div 
@@ -29,10 +30,11 @@ export function DashboardContainer() {
         </div>
         
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <AIRecommendations data={recommendations} />
+          <AIRecommendations />
           <IncidentTimeline data={incidents} />
         </div>
       </div>
+      <SimulationModal />
     </motion.div>
   );
 }
