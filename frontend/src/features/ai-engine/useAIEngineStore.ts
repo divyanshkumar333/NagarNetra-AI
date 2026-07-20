@@ -20,6 +20,8 @@ interface AIEngineState {
   approveRecommendation: (id: string) => Promise<void>;
   rejectRecommendation: (id: string) => void;
   clearSimulation: () => void;
+  injectTelemetry: (telemetry: Partial<Telemetry>) => void;
+  resetState: () => void;
 }
 
 const initialTelemetry: Telemetry = {
@@ -119,5 +121,21 @@ export const useAIEngineStore = create<AIEngineState>((set, get) => ({
     }));
   },
 
-  clearSimulation: () => set({ activeSimulation: null })
+  clearSimulation: () => set({ activeSimulation: null }),
+
+  injectTelemetry: (newTelemetry) => set((state) => ({ 
+    telemetry: { ...state.telemetry!, ...newTelemetry } 
+  })),
+
+  resetState: () => set({
+    isProcessing: false,
+    currentStage: "Observe",
+    telemetry: initialTelemetry,
+    hotspots: [],
+    cityHealth: null,
+    predictions: [],
+    recommendations: [],
+    decisionLog: [],
+    activeSimulation: null
+  })
 }));

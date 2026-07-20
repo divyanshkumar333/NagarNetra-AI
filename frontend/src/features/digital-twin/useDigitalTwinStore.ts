@@ -23,6 +23,7 @@ interface DigitalTwinState {
   setSelectedEntity: (entity: Entity | null) => void;
   triggerIncident: (type: string) => void;
   toggleHeatmaps: () => void;
+  resetState: () => void;
 }
 
 export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
@@ -44,4 +45,12 @@ export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
     }, 10000);
   },
   toggleHeatmaps: () => set((state) => ({ heatmapsEnabled: !state.heatmapsEnabled })),
+  resetState: () => set({
+    timeOfDay: "day",
+    cameraPreset: "overview",
+    weather: "clear",
+    selectedEntity: null,
+    activeIncident: null,
+    heatmapsEnabled: false
+  })
 }));
