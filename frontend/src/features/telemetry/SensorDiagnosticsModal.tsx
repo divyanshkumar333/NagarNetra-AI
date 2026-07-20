@@ -82,7 +82,7 @@ function DiagnosticMetric({ icon, label, value }: { icon: React.ReactNode, label
   return (
     <div className="bg-background/50 border border-border/50 rounded-lg p-3 flex items-center gap-3">
       <div className="p-2 bg-muted rounded-md text-muted-foreground">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4" })}
+        {React.cloneElement(icon as React.ReactElement<Record<string, unknown>>, { className: "w-4 h-4" })}
       </div>
       <div>
         <p className="text-[10px] uppercase text-muted-foreground">{label}</p>

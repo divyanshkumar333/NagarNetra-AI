@@ -4,11 +4,18 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import { GlobalToaster } from "@/components/ui/GlobalToaster";
+import { KeyboardProvider } from "@/components/layout/KeyboardProvider";
+
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "NagarNetra AI",
-  description: "The Intelligent Eye of the City - AI Smart City Operations",
+  title: "NagarNetra AI | Command Center",
+  description: "The Intelligent Eye of the City - Enterprise AI Smart City Operations",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -19,9 +26,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("font-sans dark antialiased", geist.variable)}>
       <body>
-        <AppShell>
-          {children}
-        </AppShell>
+        <KeyboardProvider>
+          <AppShell>
+            {children}
+          </AppShell>
+          <CommandPalette />
+          <GlobalToaster />
+        </KeyboardProvider>
       </body>
     </html>
   );

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import { PlaybackSpeed, ScenarioDefinition, SimulationStats, TimelineEvent, Severity } from "./types";
 import { useAIEngineStore } from "../ai-engine/useAIEngineStore";
 import { useDigitalTwinStore } from "../digital-twin/useDigitalTwinStore";
@@ -134,6 +135,7 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
 
   if (scenario.id === "sc-rush-accident") {
     addEvent({ title: "Major Accident Detected", description: "Collision at Main Junction. Northbound lanes blocked.", category: "outcome" });
+    toast.error("Major Accident Detected", { description: "Collision at Main Junction. Northbound lanes blocked." });
     triggerIncident("accident");
     injectTelemetry({ 
       congestion: { "Main Junction": 95, "North Ave": 85 }, 
@@ -142,10 +144,12 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
     });
   } else if (scenario.id === "sc-heavy-rain") {
     addEvent({ title: "Heavy Rain Started", description: "Visibility dropping. Congestion compounding.", category: "outcome" });
+    toast.warning("Weather Alert: Heavy Rain", { description: "Visibility dropping. Congestion compounding." });
     setWeather("rain");
     injectTelemetry({ weather: "rain", congestion: { "Main Junction": 85, "North Ave": 80 } });
   } else if (scenario.id === "sc-vip-convoy") {
     addEvent({ title: "VIP Convoy En Route", description: "Convoy approaching city limits.", category: "observation" });
+    toast.info("Security Alert: VIP Convoy", { description: "Convoy approaching city limits." });
     injectTelemetry({ emergencyVehiclesActive: 5, congestion: { "Main Junction": 90 } });
   }
   await delay(1500);
@@ -187,6 +191,7 @@ async function runDemoSequence(get: () => SimulationState, scenario: ScenarioDef
     addEvent({ title: "Traffic Stabilized", description: "City health returning to optimal levels.", category: "outcome" });
     
     await delay(2000);
+    toast.success("Simulation Complete", { description: "City metrics stabilized. Recommendations logged." });
     // End Simulation
     get().finishSimulation({
       initialHealth: 78,

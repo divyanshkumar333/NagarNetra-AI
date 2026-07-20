@@ -13,25 +13,40 @@ import { SimulationModal } from "../ai-engine/SimulationModal";
 export function DashboardContainer() {
   const { kpis, incidents, chartData } = useDashboardData();
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6 max-w-[1800px] mx-auto"
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 max-w-[1800px] mx-auto pb-10"
     >
-      <DashboardHero />
-      <KPIGrid data={kpis} />
+      <motion.div variants={item}><DashboardHero /></motion.div>
+      <motion.div variants={item}><KPIGrid data={kpis} /></motion.div>
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <TrafficOverview />
-          <AnalyticsCharts data={chartData} />
+          <motion.div variants={item} className="h-full"><TrafficOverview /></motion.div>
+          <motion.div variants={item}><AnalyticsCharts data={chartData} /></motion.div>
         </div>
         
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <AIRecommendations />
-          <IncidentTimeline data={incidents} />
+          <motion.div variants={item}><AIRecommendations /></motion.div>
+          <motion.div variants={item}><IncidentTimeline data={incidents} /></motion.div>
         </div>
       </div>
       <SimulationModal />

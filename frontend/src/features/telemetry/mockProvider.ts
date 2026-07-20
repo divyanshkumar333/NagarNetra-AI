@@ -2,6 +2,7 @@ import { TelemetryProvider } from "./provider";
 import { TelemetryData, TrafficCamera, EnvironmentSensor, InfrastructureNode, EmergencyEvent } from "./types";
 import { useAIEngineStore } from "../ai-engine/useAIEngineStore";
 import { useDigitalTwinStore } from "../digital-twin/useDigitalTwinStore";
+import { toast } from "sonner";
 
 const generateCameras = (): TrafficCamera[] => {
   return [
@@ -74,6 +75,12 @@ export const MockTelemetryProvider: TelemetryProvider = {
           congestion: { [newEmergency.location]: 85 }
         });
         useAIEngineStore.getState().triggerPipeline();
+        
+        // Trigger enterprise notification
+        toast.error(`Critical Event Detected: ${newEmergency.type} at ${newEmergency.location}`, {
+          description: "AI Neural Pipeline engaged. Evaluating response strategy...",
+          duration: 5000,
+        });
       }
 
       // Sync weather to digital twin if needed
