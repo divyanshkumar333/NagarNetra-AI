@@ -1,1 +1,1 @@
-from backend.main import handler
+from backend.main import app
