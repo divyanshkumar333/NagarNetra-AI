@@ -1,0 +1,6 @@
+{
+  "name": "nagarnetra-ai-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root package.json to prevent Vercel from automatically changing the Root Directory to frontend/"
+}
