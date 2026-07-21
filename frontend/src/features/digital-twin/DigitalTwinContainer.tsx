@@ -10,6 +10,11 @@ import { InspectorPanel } from "./InspectorPanel";
 import { LiveFeedOverlay } from "./LiveFeedOverlay";
 import { useDigitalTwinStore } from "./useDigitalTwinStore";
 
+import { MiniMap } from "./MiniMap";
+
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { AILogTerminal } from "./AILogTerminal";
+
 function LoadingFallback() {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50">
@@ -35,11 +40,15 @@ function IntroOverlay() {
 }
 
 export function DigitalTwinContainer() {
+  const theme = useDigitalTwinStore((state) => state.theme);
+
   return (
     <div className="relative w-full h-[calc(100vh-65px)] -mt-6 -mx-6 bg-background overflow-hidden">
       <ControlPanel />
       <InspectorPanel />
       <LiveFeedOverlay />
+      <MiniMap />
+      <AILogTerminal />
       <IntroOverlay />
       
       <Suspense fallback={<LoadingFallback />}>
@@ -48,6 +57,11 @@ export function DigitalTwinContainer() {
           <CameraRig />
           <Scene />
           <AIOverlay />
+          {theme === "cyberpunk" && (
+            <EffectComposer>
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
+            </EffectComposer>
+          )}
         </Canvas>
       </Suspense>
     </div>

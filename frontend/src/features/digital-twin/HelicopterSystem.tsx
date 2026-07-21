@@ -18,7 +18,7 @@ interface HeliState {
 }
 
 export function HelicopterSystem() {
-  const { activeIncident, incidentLocation, timeOfDay } = useDigitalTwinStore();
+  const { activeIncident, incidentLocation, timeOfDay, simulationSpeed } = useDigitalTwinStore();
   const isNight = timeOfDay === "night";
 
   const policeHeliRef = useRef<THREE.Group>(null);
@@ -57,7 +57,7 @@ export function HelicopterSystem() {
   ]);
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1);
+    const dt = Math.min(delta, 0.1) * simulationSpeed;
     
     helis.forEach((heli) => {
       const isPolice = heli.type === "police";
@@ -104,6 +104,11 @@ export function HelicopterSystem() {
         
         // Tilt nose down while flying forward
         groupRef.current.lookAt(heli.targetPos);
+      }
+
+      // Report helicopter position for camera tracking if followed
+      if (useDigitalTwinStore.getState().followTarget === "helicopter" && heli.type === "police") {
+        useDigitalTwinStore.getState().setFollowedPosition([heli.currentPos.x, heli.currentPos.y, heli.currentPos.z]);
       }
 
       // 3. Spin rotors

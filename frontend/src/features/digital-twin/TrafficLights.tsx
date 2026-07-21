@@ -11,78 +11,125 @@ const colorObj = new THREE.Color();
 export function TrafficLights() {
   const timeOfDay = useDigitalTwinStore((state) => state.timeOfDay);
   const isNight = timeOfDay === "night";
-  
-  // Extract all nodes (intersections) directly from the 20x20 city grid
+
   const intersections = useMemo(() => {
     return Array.from(cityData.nodes.values());
   }, []);
 
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const bulbRef = useRef<THREE.InstancedMesh>(null);
-  
-  const dimColor = isNight ? "#1e293b" : "#475569";
+  const poleMeshRef = useRef<THREE.InstancedMesh>(null);
+  const armMeshRef = useRef<THREE.InstancedMesh>(null);
+  const housingMeshRef = useRef<THREE.InstancedMesh>(null);
+  const bulbMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  // Update light pole positions once
+  const metalColor = isNight ? "#1e293b" : "#475569";
+
+  // Build the structures once
   useLayoutEffect(() => {
-    if (meshRef.current) {
+    if (poleMeshRef.current && armMeshRef.current && housingMeshRef.current) {
       intersections.forEach((node, i) => {
-        // Place a light pole slightly offset from the intersection
-        dummy.position.set(node.pos.x - 8, 4, node.pos.z - 8);
-        dummy.scale.set(1, 8, 1);
+        // 1. Vertical Pole
+        dummy.position.set(node.pos.x - 7, 3.5, node.pos.z - 7);
+        dummy.scale.set(0.2, 7, 0.2);
+        dummy.rotation.set(0, 0, 0);
         dummy.updateMatrix();
-        meshRef.current!.setMatrixAt(i, dummy.matrix);
+        poleMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        poleMeshRef.current!.setColorAt(i, colorObj.set(metalColor));
+
+        // 2. Horizontal Arm (extending towards the road)
+        dummy.position.set(node.pos.x - 5, 7, node.pos.z - 7);
+        dummy.scale.set(0.12, 4.0, 0.12);
+        dummy.rotation.set(0, 0, Math.PI / 2); // Rotate horizontal
+        dummy.updateMatrix();
+        armMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        armMeshRef.current!.setColorAt(i, colorObj.set(metalColor));
+
+        // 3. Black Housing
+        dummy.position.set(node.pos.x - 3, 6.5, node.pos.z - 7);
+        dummy.scale.set(0.7, 1.8, 0.7);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        housingMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        housingMeshRef.current!.setColorAt(i, colorObj.set("#0f172a")); // Matte black
       });
-      meshRef.current.instanceMatrix.needsUpdate = true;
+      poleMeshRef.current.instanceMatrix.needsUpdate = true;
+      armMeshRef.current.instanceMatrix.needsUpdate = true;
+      housingMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (poleMeshRef.current.instanceColor) poleMeshRef.current.instanceColor.needsUpdate = true;
+      if (armMeshRef.current.instanceColor) armMeshRef.current.instanceColor.needsUpdate = true;
+      if (housingMeshRef.current.instanceColor) housingMeshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [intersections]);
+  }, [intersections, metalColor]);
 
-  // Sync visual light bulbs with the real-time AI traffic timers in useFrame
+  // Animate the bulbs
   useFrame(() => {
-    if (bulbRef.current) {
+    if (bulbMeshRef.current) {
       intersections.forEach((node, i) => {
-        // Position the bulb on top of the pole
-        dummy.position.set(node.pos.x - 8, 7.5, node.pos.z - 7);
-        dummy.scale.set(1.5, 1.5, 1.5);
-        dummy.updateMatrix();
-        bulbRef.current!.setMatrixAt(i, dummy.matrix);
-
-        // Fetch this intersection's timer
         const lt = lightTimers.get(node.id);
-        let activeColor = "#ef4444"; // Default Red
+        let activeColor = "#ef4444"; // Red
+        let bulbY = 7.1; // Top slot
 
         if (lt) {
-          // If horizontal axis is green, horizontal gets green, vertical gets red.
-          // For visual simplicity, we toggle green/red cycles in sync with vehicles.
-          if (lt.activeAxis === 'h') {
-            activeColor = lt.timer < 60 ? "#eab308" : "#22c55e"; // Yellow vs Green
+          if (lt.activeAxis === "h") {
+            if (lt.timer < 60) {
+              activeColor = "#eab308"; // Yellow
+              bulbY = 6.5; // Middle slot
+            } else {
+              activeColor = "#22c55e"; // Green
+              bulbY = 5.9; // Bottom slot
+            }
           } else {
-            activeColor = lt.timer < 60 ? "#eab308" : "#ef4444"; // Yellow vs Red
+            if (lt.timer < 60) {
+              activeColor = "#eab308"; // Yellow
+              bulbY = 6.5; // Middle slot
+            } else {
+              activeColor = "#ef4444"; // Red
+              bulbY = 7.1; // Top slot
+            }
           }
         }
 
-        bulbRef.current!.setColorAt(i, colorObj.set(activeColor));
+        // Active bulb is placed on the side of the housing facing incoming traffic
+        dummy.position.set(node.pos.x - 3, bulbY, node.pos.z - 6.6);
+        dummy.scale.set(0.3, 0.3, 0.3);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        bulbMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        bulbMeshRef.current!.setColorAt(i, colorObj.set(activeColor));
       });
-      bulbRef.current.instanceMatrix.needsUpdate = true;
-      if (bulbRef.current.instanceColor) {
-        bulbRef.current.instanceColor.needsUpdate = true;
+      bulbMeshRef.current.instanceMatrix.needsUpdate = true;
+      if (bulbMeshRef.current.instanceColor) {
+        bulbMeshRef.current.instanceColor.needsUpdate = true;
       }
     }
   });
 
   return (
     <group>
-      {/* Poles */}
-      <instancedMesh ref={meshRef} args={[undefined, undefined, intersections.length]} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={dimColor} metalness={0.8} roughness={0.2} />
+      {/* Vertical Poles */}
+      <instancedMesh ref={poleMeshRef} args={[undefined, undefined, intersections.length]} castShadow>
+        <cylinderGeometry args={[1, 1, 1, 8]} />
+        <meshStandardMaterial roughness={0.4} metalness={0.7} />
       </instancedMesh>
-      
-      {/* Lights */}
-      <instancedMesh ref={bulbRef} args={[undefined, undefined, intersections.length]}>
+
+      {/* Horizontal Arms */}
+      <instancedMesh ref={armMeshRef} args={[undefined, undefined, intersections.length]} castShadow>
+        <cylinderGeometry args={[1, 1, 1, 8]} />
+        <meshStandardMaterial roughness={0.4} metalness={0.7} />
+      </instancedMesh>
+
+      {/* Signal Housings */}
+      <instancedMesh ref={housingMeshRef} args={[undefined, undefined, intersections.length]} castShadow>
         <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial roughness={0.8} metalness={0.1} />
+      </instancedMesh>
+
+      {/* Active Light Bulbs */}
+      <instancedMesh ref={bulbMeshRef} args={[undefined, undefined, intersections.length]}>
+        <sphereGeometry args={[1, 12, 12]} />
         <meshStandardMaterial 
-          roughness={0.2}
-          metalness={0.8}
+          roughness={0.1} 
+          metalness={0.9} 
+          emissiveIntensity={isNight ? 5 : 2}
           toneMapped={false}
         />
       </instancedMesh>

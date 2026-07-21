@@ -22,7 +22,7 @@ export function TelemetryHealthPanel() {
         } else {
           setApiStatus("offline");
         }
-      } catch (err) {
+      } catch {
         setApiStatus("offline");
       }
     };

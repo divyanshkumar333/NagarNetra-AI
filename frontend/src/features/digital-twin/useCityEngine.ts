@@ -5,7 +5,7 @@ export const BLOCK_SIZE = 48;
 export const ROAD_WIDTH = 14;
 export const SPACING = BLOCK_SIZE + ROAD_WIDTH;
 
-export type DistrictType = "downtown" | "commercial" | "residential" | "industrial" | "park" | "stadium" | "government" | "tech-park";
+export type DistrictType = "downtown" | "commercial" | "residential" | "industrial" | "park" | "stadium" | "government" | "tech-park" | "hospital" | "police" | "fire";
 
 export interface Node {
   id: string;
@@ -38,6 +38,7 @@ export interface BuildingData {
   type: string;
   hasHelipad?: boolean;
   hasSpire?: boolean;
+  poiType?: string;
 }
 
 export interface CityData {
@@ -48,9 +49,8 @@ export interface CityData {
   parks: { position: [number, number, number], scale: [number, number, number] }[];
 }
 
-export const isRiverBlock = (x: number, z: number): boolean => {
-  // Beautiful winding diagonal river path
-  return Math.abs(x - z) <= 1;
+export const isRiverBlock = (_x: number, _z: number): boolean => {
+  return false;
 };
 
 function determineDistrict(x: number, z: number, max: number): DistrictType {
@@ -61,6 +61,9 @@ function determineDistrict(x: number, z: number, max: number): DistrictType {
   if (x === 2 && z === 2) return "stadium";
   if (x === 4 && z === 12) return "government";
   if (x === max - 5 && z === 4) return "tech-park";
+  if (x === 8 && z === 3) return "police";
+  if (x === 12 && z === 16) return "fire";
+  if (x === 10 && z === 10) return "hospital";
   if (x >= max - 4 && z >= max - 4) return "industrial";
   if (dist < 4.0) return "downtown";
   if (dist < 7.0) return "commercial";
@@ -202,7 +205,8 @@ function generateCityBlocks(): Pick<CityData, "buildings" | "trees" | "parks"> {
           scale: [BLOCK_SIZE * 0.45, 50, BLOCK_SIZE * 0.45],
           color: campusColors[0],
           type: "tech-park",
-          hasSpire: true
+          hasSpire: true,
+          poiType: "Tech Center"
         });
         buildings.push({
           id: `tech_hq_${x}_${z}_2`,
@@ -210,7 +214,46 @@ function generateCityBlocks(): Pick<CityData, "buildings" | "trees" | "parks"> {
           scale: [BLOCK_SIZE * 0.45, 70, BLOCK_SIZE * 0.45],
           color: campusColors[1],
           type: "tech-park",
+          hasHelipad: true,
+          poiType: "Innovation Hub"
+        });
+        continue;
+      }
+
+      if (district === "hospital") {
+        buildings.push({
+          id: `hospital_${x}_${z}`,
+          position: [centerX, 15, centerZ],
+          scale: [BLOCK_SIZE * 0.75, 30, BLOCK_SIZE * 0.75],
+          color: "#f8fafc",
+          type: "hospital",
+          poiType: "Hospital",
           hasHelipad: true
+        });
+        continue;
+      }
+
+      if (district === "police") {
+        buildings.push({
+          id: `police_${x}_${z}`,
+          position: [centerX, 18, centerZ],
+          scale: [BLOCK_SIZE * 0.7, 36, BLOCK_SIZE * 0.7],
+          color: "#334155", // Sleek Navy-charcoal
+          type: "police",
+          poiType: "Police Station",
+          hasSpire: true
+        });
+        continue;
+      }
+
+      if (district === "fire") {
+        buildings.push({
+          id: `fire_${x}_${z}`,
+          position: [centerX, 14, centerZ],
+          scale: [BLOCK_SIZE * 0.8, 28, BLOCK_SIZE * 0.7],
+          color: "#991b1b", // Rich dark red
+          type: "fire",
+          poiType: "Fire Station"
         });
         continue;
       }
@@ -226,13 +269,13 @@ function generateCityBlocks(): Pick<CityData, "buildings" | "trees" | "parks"> {
         minHeight = 85;
         maxHeight = 260;
         // Premium Dark Corporate Sky-Scraper Palette (Navy, Obsidian, Slate)
-        colorPalette = ["#090d16", "#1e293b", "#0f172a", "#1e3a8a", "#0284c7"];
+        colorPalette = ["#090d16", "#1e293b", "#0f172a", "#2d3748", "#1a202c"];
       } else if (district === "commercial") {
         numBuildings = Math.floor(Math.random() * 3) + 1;
         minHeight = 40;
         maxHeight = 110;
-        // Cyber Neon/Glass corporate buildings (Blue/Cyan/Teal highlights)
-        colorPalette = ["#1b263b", "#415a77", "#778da9", "#0d9488", "#0891b2"];
+        // Slate corporate buildings (grey/glass highlights)
+        colorPalette = ["#1b263b", "#273549", "#3c4a5e", "#0d9488", "#1a2536"];
       } else if (district === "residential") {
         numBuildings = Math.floor(Math.random() * 4) + 2;
         minHeight = 10;

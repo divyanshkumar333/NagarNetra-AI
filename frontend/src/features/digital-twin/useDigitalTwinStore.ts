@@ -3,8 +3,9 @@ import { create } from "zustand";
 export type TimeOfDay = "day" | "night" | "sunset";
 export type CameraPreset = "overview" | "intersection" | "incident" | "ai-focus" | "traffic" | "downtown" | "stadium" | "skyline" | "birds-eye";
 export type Weather = "clear" | "rain" | "fog";
-export type FollowTarget = "none" | "emergency" | "drone" | "traffic";
-export type CameraMode = "orbit" | "free" | "present";
+export type FollowTarget = "none" | "emergency" | "drone" | "traffic" | "helicopter";
+export type CameraMode = "orbit" | "free" | "copter" | "present";
+export type Theme = "standard" | "cyberpunk";
 
 export interface Entity {
   id: string;
@@ -13,6 +14,7 @@ export interface Entity {
 }
 
 interface DigitalTwinState {
+  theme: Theme;
   timeOfDay: TimeOfDay;
   cameraPreset: CameraPreset;
   weather: Weather;
@@ -24,6 +26,8 @@ interface DigitalTwinState {
   followTarget: FollowTarget;
   followedPosition: [number, number, number] | null;
   cameraMode: CameraMode;
+  simulationSpeed: number;
+  setTheme: (theme: Theme) => void;
   setTimeOfDay: (time: TimeOfDay) => void;
   setCameraPreset: (preset: CameraPreset) => void;
   setWeather: (weather: Weather) => void;
@@ -34,10 +38,12 @@ interface DigitalTwinState {
   setFollowTarget: (target: FollowTarget) => void;
   setFollowedPosition: (pos: [number, number, number] | null) => void;
   setCameraMode: (mode: CameraMode) => void;
+  setSimulationSpeed: (speed: number) => void;
   resetState: () => void;
 }
 
 export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
+  theme: "standard",
   timeOfDay: "day",
   cameraPreset: "overview",
   weather: "clear",
@@ -49,12 +55,13 @@ export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
   followTarget: "none",
   followedPosition: null,
   cameraMode: "orbit",
+  simulationSpeed: 1.0,
+  setTheme: (theme) => set({ theme }),
   setTimeOfDay: (time) => set({ timeOfDay: time }),
-  setCameraPreset: (preset) => set({ cameraPreset: preset, followTarget: "none", cameraMode: "orbit" }), // reset follow and mode when switching preset
+  setCameraPreset: (preset) => set({ cameraPreset: preset, followTarget: "none", cameraMode: "orbit" }),
   setWeather: (weather) => set({ weather }),
   setSelectedEntity: (entity) => set({ selectedEntity: entity }),
   triggerIncident: (type) => {
-    // Generate a semi-random incident coordinate for the helicopters/drones
     const randX = (Math.random() - 0.5) * 500;
     const randZ = (Math.random() - 0.5) * 500;
     set({ 
@@ -64,7 +71,6 @@ export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
       cameraMode: "orbit",
       incidentLocation: [randX, 0, randZ] 
     });
-    // Auto-resolve incident after 10 seconds for simulation purposes
     setTimeout(() => {
       set((state) => state.activeIncident === type ? { activeIncident: null, cameraPreset: "overview", incidentLocation: null } : state);
     }, 10000);
@@ -74,7 +80,9 @@ export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
   setFollowTarget: (target) => set({ followTarget: target, cameraPreset: "overview", cameraMode: "orbit" }),
   setFollowedPosition: (pos) => set({ followedPosition: pos }),
   setCameraMode: (mode) => set({ cameraMode: mode, followTarget: mode === "free" ? "none" : undefined }),
+  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
   resetState: () => set({
+    theme: "standard",
     timeOfDay: "day",
     cameraPreset: "overview",
     weather: "clear",
@@ -82,9 +90,10 @@ export const useDigitalTwinStore = create<DigitalTwinState>((set) => ({
     activeIncident: null,
     incidentLocation: null,
     heatmapsEnabled: false,
-    introActive: false, // Don't re-run intro on basic reset
+    introActive: false,
     followTarget: "none",
     followedPosition: null,
-    cameraMode: "orbit"
+    cameraMode: "orbit",
+    simulationSpeed: 1.0
   })
 }));

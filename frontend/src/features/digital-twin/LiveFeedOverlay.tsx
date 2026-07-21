@@ -26,7 +26,7 @@ export function LiveFeedOverlay() {
   }, [activeIncident]);
 
   return (
-    <div className="absolute bottom-6 right-6 z-10 w-72 glass-premium border border-border/50 rounded-lg overflow-hidden flex flex-col shadow-2xl transition-all duration-300 hover:border-primary/50">
+    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 w-96 glass-premium border border-border/50 rounded-lg overflow-hidden flex flex-col shadow-2xl transition-all duration-300 hover:border-primary/50">
       {/* Header */}
       <div className="bg-background/90 px-3 py-2 border-b border-border/50 flex justify-between items-center text-xs">
         <div className="flex items-center gap-1.5 font-semibold text-primary tracking-wide">

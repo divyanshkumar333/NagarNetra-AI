@@ -61,11 +61,6 @@ export function AIDrone() {
         <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.2} />
       </mesh>
 
-      {/* AI Indicator Light */}
-      <mesh position={[0, -0.6, 0]}>
-        <sphereGeometry args={[0.3, 16, 16]} />
-        <meshStandardMaterial color="#0ea5e9" emissive="#0ea5e9" emissiveIntensity={2} />
-      </mesh>
 
       {/* Rotors */}
       <mesh name="rotor" position={[1.5, 0.6, 1.5]}>

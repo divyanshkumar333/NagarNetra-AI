@@ -33,9 +33,33 @@ export function CameraRig() {
 
   const keysRef = useRef<Record<string, boolean>>({});
   const mouseRef = useRef({ yaw: 0, pitch: -0.5 });
-  const scrollRef = useRef<number>(0);
+  
+  // Drone Physics States
+  const dronePos = useRef(new THREE.Vector3(30, 40, 50));
+  const droneVelocity = useRef(new THREE.Vector3(0, 0, 0));
+  const droneTilt = useRef({ pitch: 0, roll: 0 });
+  const droneSpeedLimit = useRef(75.0);
+  const propellerAngle = useRef(0);
 
-  // Keyboard, mouse look, and scroll event listeners for Free Camera
+  // Heli Physics States
+  const heliPos = useRef(new THREE.Vector3(-45, 65, -45));
+  const heliVelocity = useRef(new THREE.Vector3(0, 0, 0));
+  const heliTilt = useRef({ pitch: 0, roll: 0 });
+  const mainRotorAngle = useRef(0);
+
+  // Drone Groups
+  const droneGroupRef = useRef<THREE.Group>(null);
+  const prop1Ref = useRef<THREE.Group>(null);
+  const prop2Ref = useRef<THREE.Group>(null);
+  const prop3Ref = useRef<THREE.Group>(null);
+  const prop4Ref = useRef<THREE.Group>(null);
+
+  // Heli Groups
+  const heliGroupRef = useRef<THREE.Group>(null);
+  const heliMainRotorRef = useRef<THREE.Group>(null);
+  const heliTailRotorRef = useRef<THREE.Group>(null);
+
+  // Keyboard and Mouse listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = true;
@@ -44,15 +68,17 @@ export function CameraRig() {
       keysRef.current[e.key.toLowerCase()] = false;
     };
     const handleMouseMove = (e: MouseEvent) => {
-      if (useDigitalTwinStore.getState().cameraMode === "free" && e.buttons === 1) {
-        const sensitivity = 0.003;
+      const mode = useDigitalTwinStore.getState().cameraMode;
+      if ((mode === "free" || mode === "copter") && e.buttons === 1) {
+        const sensitivity = 0.0025;
         mouseRef.current.yaw -= e.movementX * sensitivity;
-        mouseRef.current.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, mouseRef.current.pitch - e.movementY * sensitivity));
+        mouseRef.current.pitch = Math.max(-Math.PI / 2 + 0.15, Math.min(Math.PI / 2 - 0.15, mouseRef.current.pitch - e.movementY * sensitivity));
       }
     };
     const handleWheel = (e: WheelEvent) => {
-      if (useDigitalTwinStore.getState().cameraMode === "free") {
-        scrollRef.current += e.deltaY;
+      const mode = useDigitalTwinStore.getState().cameraMode;
+      if (mode === "free") {
+        droneSpeedLimit.current = Math.max(10, Math.min(220, droneSpeedLimit.current - e.deltaY * 0.1));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -67,7 +93,7 @@ export function CameraRig() {
     };
   }, []);
 
-  // Skip intro on any user pointer or scroll input
+  // Skip intro
   useEffect(() => {
     const handleSkip = () => {
       if (useDigitalTwinStore.getState().introActive) {
@@ -84,13 +110,42 @@ export function CameraRig() {
     };
   }, []);
 
-  useFrame((state, delta) => {
-    const dt = Math.min(delta, 0.1); // Cap delta to prevent huge jumps on frame drops
-    const lambda = 2.5; // Damping rate (higher is faster/tighter response)
+  // Bounding Collision pushes away from building geometry
+  const checkBuildingCollision = (pos: THREE.Vector3, padding: number) => {
+    const buildings = cityData.buildings;
+    for (let i = 0; i < buildings.length; i++) {
+      const bld = buildings[i];
+      const bHeight = bld.scale[1] + 0.4;
+      const halfW = bld.scale[0] / 2 + padding;
+      const halfD = bld.scale[2] / 2 + padding;
 
+      const dx = pos.x - bld.position[0];
+      const dz = pos.z - bld.position[2];
+
+      if (Math.abs(dx) < halfW && Math.abs(dz) < halfD && pos.y < bHeight + padding) {
+        const overlapX = halfW - Math.abs(dx);
+        const overlapZ = halfD - Math.abs(dz);
+        const overlapY = (bHeight + padding) - pos.y;
+
+        if (overlapY < overlapX && overlapY < overlapZ) {
+          pos.y = bHeight + padding;
+        } else if (overlapX < overlapZ) {
+          pos.x += Math.sign(dx) * overlapX;
+        } else {
+          pos.z += Math.sign(dz) * overlapZ;
+        }
+      }
+    }
+  };
+
+  useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.1);
+    const lambda = 2.8;
+
+    // Intro Flight fly-by
     if (introActive) {
       const elapsed = state.clock.getElapsedTime();
-      const introDuration = 7.0; // 7 seconds total duration
+      const introDuration = 7.0;
 
       if (elapsed >= introDuration) {
         setIntroActive(false);
@@ -98,23 +153,20 @@ export function CameraRig() {
       }
 
       const ratio = elapsed / introDuration;
-      // Spiral orbit: start high and rotate around center while descending
       const startRadius = 550;
-      const endRadius = 350;
+      const endRadius = 320;
       const currentRadius = startRadius - (startRadius - endRadius) * ratio;
-      const angle = ratio * Math.PI * 1.5; // 1.5 full rotations
+      const angle = ratio * Math.PI * 1.5;
 
       const targetX = currentRadius * Math.sin(angle);
-      const targetY = 400 - ratio * 180; // Descend from 400 to 220
+      const targetY = 380 - ratio * 200;
       const targetZ = currentRadius * Math.cos(angle);
 
-      // Interpolate camera to spiral coordinates
       state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, targetX, lambda, dt);
       state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, targetY, lambda, dt);
       state.camera.position.z = THREE.MathUtils.damp(state.camera.position.z, targetZ, lambda, dt);
 
       if (controlsRef.current) {
-        // Target slowly centers on downtown
         controlsRef.current.target.x = THREE.MathUtils.damp(controlsRef.current.target.x, 0, lambda, dt);
         controlsRef.current.target.y = THREE.MathUtils.damp(controlsRef.current.target.y, 40 - ratio * 40, lambda, dt);
         controlsRef.current.target.z = THREE.MathUtils.damp(controlsRef.current.target.z, 0, lambda, dt);
@@ -123,49 +175,178 @@ export function CameraRig() {
       return;
     }
 
-    // 1. WASD + Scroll Free Flight Camera Mode
+    // 1. Piloted Drone Flight Simulation
     if (cameraMode === "free") {
       const keys = keysRef.current;
-      const speed = keys["shift"] ? 240 : 80; // Speed boost with Shift key
+      const maxSpeed = keys["shift"] ? droneSpeedLimit.current * 1.8 : droneSpeedLimit.current;
 
-      const moveDir = new THREE.Vector3();
-      // W/S - Forward/Backward
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(state.camera.quaternion);
-      if (keys["w"]) moveDir.add(forward);
-      if (keys["s"]) moveDir.sub(forward);
+      const accel = new THREE.Vector3();
+      const forwardVec = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseRef.current.yaw);
+      const rightVec = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseRef.current.yaw);
+      const upVec = new THREE.Vector3(0, 1, 0);
 
-      // A/D - Strafe Left/Right
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(state.camera.quaternion);
-      if (keys["a"]) moveDir.sub(right);
-      if (keys["d"]) moveDir.add(right);
+      if (keys["w"]) accel.add(forwardVec);
+      if (keys["s"]) accel.sub(forwardVec);
+      if (keys["a"]) accel.sub(rightVec);
+      if (keys["d"]) accel.add(rightVec);
+      if (keys["e"]) accel.add(upVec);
+      if (keys["q"]) accel.sub(upVec);
 
-      // Q/E - Vertical elevation
-      const up = new THREE.Vector3(0, 1, 0);
-      if (keys["e"]) moveDir.add(up);
-      if (keys["q"]) moveDir.sub(up);
-
-      // Scroll wheel speed impulse
-      let scrollMovement = 0;
-      if (scrollRef.current !== 0) {
-        scrollMovement = -scrollRef.current * 0.15; // sensitivity adjustment
-        scrollRef.current = 0; // reset
+      if (accel.lengthSq() > 0) {
+        accel.normalize().multiplyScalar(120.0 * dt);
+        droneVelocity.current.add(accel);
       }
 
-      if (moveDir.lengthSq() > 0) {
-        moveDir.normalize();
-        state.camera.position.addScaledVector(moveDir, speed * dt);
-      }
-      if (scrollMovement !== 0) {
-        state.camera.position.addScaledVector(forward, scrollMovement);
+      droneVelocity.current.multiplyScalar(Math.exp(-2.2 * dt));
+
+      const speedMagnitude = droneVelocity.current.length();
+      if (speedMagnitude > maxSpeed * 0.016) {
+        droneVelocity.current.setLength(maxSpeed * 0.016);
       }
 
-      // Rotate camera rotation Euler angles
-      const targetRotation = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(mouseRef.current.pitch, mouseRef.current.yaw, 0, "YXZ")
+      dronePos.current.add(droneVelocity.current);
+      checkBuildingCollision(dronePos.current, 2.0);
+      if (dronePos.current.y < 3.0) {
+        dronePos.current.y = 3.0;
+        droneVelocity.current.y = 0;
+      }
+
+      const relativeForward = droneVelocity.current.dot(forwardVec) / (maxSpeed * 0.016);
+      const relativeStrafe = droneVelocity.current.dot(rightVec) / (maxSpeed * 0.016);
+      const hoverBob = Math.sin(state.clock.getElapsedTime() * 4.0) * 0.08;
+
+      droneTilt.current.pitch = THREE.MathUtils.damp(droneTilt.current.pitch, -relativeForward * 0.22, 6.0, dt);
+      droneTilt.current.roll = THREE.MathUtils.damp(droneTilt.current.roll, -relativeStrafe * 0.28, 6.0, dt);
+
+      if (droneGroupRef.current) {
+        droneGroupRef.current.position.copy(dronePos.current);
+        droneGroupRef.current.position.y += hoverBob;
+        const euler = new THREE.Euler(droneTilt.current.pitch, mouseRef.current.yaw, droneTilt.current.roll, "YXZ");
+        droneGroupRef.current.rotation.copy(euler);
+      }
+
+      const spinSpeed = 20.0 + speedMagnitude * 120.0;
+      propellerAngle.current += spinSpeed * dt;
+      if (prop1Ref.current) prop1Ref.current.rotation.y = propellerAngle.current;
+      if (prop2Ref.current) prop2Ref.current.rotation.y = -propellerAngle.current;
+      if (prop3Ref.current) prop3Ref.current.rotation.y = propellerAngle.current;
+      if (prop4Ref.current) prop4Ref.current.rotation.y = -propellerAngle.current;
+
+      const followX = dronePos.current.x - forwardVec.x * 16.5;
+      const followY = dronePos.current.y + 6.2;
+      const followZ = dronePos.current.z - forwardVec.z * 16.5;
+
+      const shakeVal = speedMagnitude * 0.12;
+      const shakeX = (Math.random() - 0.5) * shakeVal * 0.05;
+      const shakeY = (Math.random() - 0.5) * shakeVal * 0.05;
+
+      state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, followX + shakeX, 7.5, dt);
+      state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, followY + shakeY, 7.5, dt);
+      state.camera.position.z = THREE.MathUtils.damp(state.camera.position.z, followZ, 7.5, dt);
+
+      checkBuildingCollision(state.camera.position, 1.8);
+
+      const lookTarget = new THREE.Vector3(
+        dronePos.current.x + forwardVec.x * 5.0,
+        dronePos.current.y - 0.4,
+        dronePos.current.z + forwardVec.z * 5.0
       );
-      state.camera.quaternion.slerp(targetRotation, 10 * dt);
-    } else {
-      // 2. Active Follow Target
+      state.camera.lookAt(lookTarget);
+
+      useDigitalTwinStore.getState().setFollowedPosition([dronePos.current.x, dronePos.current.y, dronePos.current.z]);
+    } 
+
+    // 2. Piloted Helicopter Flight Simulation (New requested feature)
+    else if (cameraMode === "copter") {
+      const keys = keysRef.current;
+      const maxSpeed = keys["shift"] ? 140.0 : 85.0; // Helicopter has higher speed ceilings
+
+      const accel = new THREE.Vector3();
+      const forwardVec = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseRef.current.yaw);
+      const rightVec = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseRef.current.yaw);
+      const upVec = new THREE.Vector3(0, 1, 0);
+
+      // WASD horizontal, QE vertical elevation
+      if (keys["w"]) accel.add(forwardVec);
+      if (keys["s"]) accel.sub(forwardVec);
+      if (keys["a"]) accel.sub(rightVec);
+      if (keys["d"]) accel.add(rightVec);
+      if (keys["e"]) accel.add(upVec);
+      if (keys["q"]) accel.sub(upVec);
+
+      // Helicopter acceleration forces
+      if (accel.lengthSq() > 0) {
+        accel.normalize().multiplyScalar(90.0 * dt);
+        heliVelocity.current.add(accel);
+      }
+
+      // Air resistance linear drag
+      heliVelocity.current.multiplyScalar(Math.exp(-1.5 * dt));
+
+      const speedMagnitude = heliVelocity.current.length();
+      if (speedMagnitude > maxSpeed * 0.016) {
+        heliVelocity.current.setLength(maxSpeed * 0.016);
+      }
+
+      // Update position and check collision
+      heliPos.current.add(heliVelocity.current);
+      checkBuildingCollision(heliPos.current, 3.5); // Larger padding for heli chassis
+      if (heliPos.current.y < 4.0) {
+        heliPos.current.y = 4.0;
+        heliVelocity.current.y = 0;
+      }
+
+      const relativeForward = heliVelocity.current.dot(forwardVec) / (maxSpeed * 0.016);
+      const relativeStrafe = heliVelocity.current.dot(rightVec) / (maxSpeed * 0.016);
+
+      // Calculate tilt limits
+      heliTilt.current.pitch = THREE.MathUtils.damp(heliTilt.current.pitch, -relativeForward * 0.28, 5.0, dt);
+      heliTilt.current.roll = THREE.MathUtils.damp(heliTilt.current.roll, -relativeStrafe * 0.32, 5.0, dt);
+
+      // Position helicopter group
+      if (heliGroupRef.current) {
+        heliGroupRef.current.position.copy(heliPos.current);
+        const euler = new THREE.Euler(heliTilt.current.pitch, mouseRef.current.yaw, heliTilt.current.roll, "YXZ");
+        heliGroupRef.current.rotation.copy(euler);
+      }
+
+      // Spin main and tail rotors
+      const rSpeed = 30.0 + speedMagnitude * 90.0;
+      mainRotorAngle.current += rSpeed * dt;
+      if (heliMainRotorRef.current) {
+        heliMainRotorRef.current.rotation.y = mainRotorAngle.current;
+      }
+      if (heliTailRotorRef.current) {
+        heliTailRotorRef.current.rotation.z = mainRotorAngle.current * 1.35;
+      }
+
+      // Follow camera coordinates (helicopter has larger offset)
+      const followX = heliPos.current.x - forwardVec.x * 25.0;
+      const followY = heliPos.current.y + 9.5;
+      const followZ = heliPos.current.z - forwardVec.z * 25.0;
+
+      const shakeVal = speedMagnitude * 0.08;
+      const shakeX = (Math.random() - 0.5) * shakeVal * 0.05;
+      const shakeY = (Math.random() - 0.5) * shakeVal * 0.05;
+
+      state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, followX + shakeX, 6.8, dt);
+      state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, followY + shakeY, 6.8, dt);
+      state.camera.position.z = THREE.MathUtils.damp(state.camera.position.z, followZ, 6.8, dt);
+
+      checkBuildingCollision(state.camera.position, 2.5);
+
+      const lookTarget = new THREE.Vector3(
+        heliPos.current.x + forwardVec.x * 7.0,
+        heliPos.current.y - 0.8,
+        heliPos.current.z + forwardVec.z * 7.0
+      );
+      state.camera.lookAt(lookTarget);
+
+      useDigitalTwinStore.getState().setFollowedPosition([heliPos.current.x, heliPos.current.y, heliPos.current.z]);
+    }
+
+    // 3. Cinematic auto-follow cameras
+    else {
       if (followTarget !== "none" && followedPosition && controlsRef.current) {
         const [fx, fy, fz] = followedPosition;
         
@@ -177,6 +358,10 @@ export function CameraRig() {
           offsetX = 0;
           offsetY = 35;
           offsetZ = 80;
+        } else if (followTarget === "helicopter") {
+          offsetX = 0;
+          offsetY = 60;
+          offsetZ = 120;
         } else if (followTarget === "traffic") {
           offsetX = 0;
           offsetY = 15;
@@ -197,13 +382,13 @@ export function CameraRig() {
 
         controlsRef.current.update();
       }
-      // 3. Smart Focus on Selected Entity
-      else if (selectedEntity && Array.isArray((selectedEntity as any).position) && controlsRef.current) {
-        const [ex, ey, ez] = (selectedEntity as any).position;
+      else if (selectedEntity && Array.isArray((selectedEntity as unknown as { position?: number[] }).position) && controlsRef.current) {
+        const [ex, ey, ez] = (selectedEntity as unknown as { position: number[] }).position;
+        const eHeight = (selectedEntity as unknown as { scale?: number[] }).scale ? (selectedEntity as unknown as { scale: number[] }).scale[1] : 5.0;
         
         const targetCamX = ex + 40;
-        const targetCamY = ey + 50;
-        const targetCamZ = ez + 65;
+        const targetCamY = ey + eHeight / 2 + 35;
+        const targetCamZ = ez + 55;
 
         state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, targetCamX, lambda, dt);
         state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, targetCamY, lambda, dt);
@@ -215,7 +400,6 @@ export function CameraRig() {
 
         controlsRef.current.update();
       }
-      // 4. Default Preset Logic
       else if (controlsRef.current) {
         const targetConfig = PRESETS[cameraPreset];
         
@@ -229,58 +413,170 @@ export function CameraRig() {
         
         controlsRef.current.update();
       }
-    }
 
-    // 5. Smooth Camera Collision Handling
-    const camPos = state.camera.position;
-    
-    // Ground floor collision threshold (keep camera above road/terrain heights)
-    const minHeight = 12.0;
-    if (camPos.y < minHeight) {
-      camPos.y = minHeight;
-    }
-
-    // Building collision checks (prevent clipping through skyscrapers)
-    const buildings = cityData.buildings;
-    const padding = 6.0; // Distance to push away from walls
-    
-    for (let i = 0; i < buildings.length; i++) {
-      const bld = buildings[i];
-      // Since buildings are elevated by 0.4, top height goes up to scale[1] + 0.4
-      const bHeight = bld.scale[1] + 0.4;
-      const halfW = bld.scale[0] / 2 + padding;
-      const halfD = bld.scale[2] / 2 + padding;
-
-      const dx = camPos.x - bld.position[0];
-      const dz = camPos.z - bld.position[2];
-
-      if (Math.abs(dx) < halfW && Math.abs(dz) < halfD && camPos.y < bHeight + padding) {
-        // Colliding! Push camera out along the shallowest axis
-        const overlapX = halfW - Math.abs(dx);
-        const overlapZ = halfD - Math.abs(dz);
-        const overlapY = (bHeight + padding) - camPos.y;
-
-        if (overlapY < overlapX && overlapY < overlapZ) {
-          camPos.y = bHeight + padding;
-        } else if (overlapX < overlapZ) {
-          camPos.x += Math.sign(dx) * overlapX;
-        } else {
-          camPos.z += Math.sign(dz) * overlapZ;
-        }
+      checkBuildingCollision(state.camera.position, 2.0);
+      if (state.camera.position.y < 8.0) {
+        state.camera.position.y = 8.0;
       }
     }
   });
 
   return (
-    <OrbitControls 
-      ref={controlsRef}
-      makeDefault 
-      minDistance={15} 
-      maxDistance={600} // Expanded max boundary for larger city
-      maxPolarAngle={Math.PI / 2 - 0.08} // Restrict camera from going underground/below city plane
-      enableDamping
-      dampingFactor={0.05} // Smooth inertia
-      enabled={cameraMode !== "free" && !introActive}
-    />
+    <>
+      <OrbitControls 
+        ref={controlsRef}
+        makeDefault 
+        minDistance={15} 
+        maxDistance={600}
+        maxPolarAngle={Math.PI / 2 - 0.08}
+        enableDamping
+        dampingFactor={0.06}
+        enabled={cameraMode !== "free" && cameraMode !== "copter" && !introActive}
+      />
+
+      {/* Render 3D Quadcopter Drone in Speeder Drone Mode */}
+      {cameraMode === "free" && (
+        <group ref={droneGroupRef}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1.5, 0.4, 2.0]} />
+            <meshStandardMaterial color="#0b0f19" metalness={0.9} roughness={0.1} />
+          </mesh>
+          <mesh position={[0, 0, -1.05]}>
+            <sphereGeometry args={[0.2, 16, 16]} />
+            <meshBasicMaterial color="#0ea5e9" />
+          </mesh>
+          
+          <mesh position={[0.9, 0.1, 0.9]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.15, 1.4]} />
+            <meshStandardMaterial color="#334155" metalness={0.8} />
+          </mesh>
+          <mesh position={[-0.9, 0.1, 0.9]} rotation={[0, -Math.PI / 4, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.15, 1.4]} />
+            <meshStandardMaterial color="#334155" metalness={0.8} />
+          </mesh>
+          <mesh position={[0.9, 0.1, -0.9]} rotation={[0, -Math.PI / 4, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.15, 1.4]} />
+            <meshStandardMaterial color="#334155" metalness={0.8} />
+          </mesh>
+          <mesh position={[-0.9, 0.1, -0.9]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.15, 1.4]} />
+            <meshStandardMaterial color="#334155" metalness={0.8} />
+          </mesh>
+
+          <group position={[1.4, 0.22, 1.4]} ref={prop1Ref}>
+            <mesh castShadow><cylinderGeometry args={[0.1, 0.1, 0.18, 6]} /><meshStandardMaterial color="#000" /></mesh>
+            <mesh position={[0, 0.08, 0]}><boxGeometry args={[1.8, 0.02, 0.12]} /><meshStandardMaterial color="#64748b" transparent opacity={0.7} /></mesh>
+          </group>
+          <group position={[-1.4, 0.22, 1.4]} ref={prop2Ref}>
+            <mesh castShadow><cylinderGeometry args={[0.1, 0.1, 0.18, 6]} /><meshStandardMaterial color="#000" /></mesh>
+            <mesh position={[0, 0.08, 0]}><boxGeometry args={[1.8, 0.02, 0.12]} /><meshStandardMaterial color="#64748b" transparent opacity={0.7} /></mesh>
+          </group>
+          <group position={[1.4, 0.22, -1.4]} ref={prop3Ref}>
+            <mesh castShadow><cylinderGeometry args={[0.1, 0.1, 0.18, 6]} /><meshStandardMaterial color="#000" /></mesh>
+            <mesh position={[0, 0.08, 0]}><boxGeometry args={[1.8, 0.02, 0.12]} /><meshStandardMaterial color="#64748b" transparent opacity={0.7} /></mesh>
+          </group>
+          <group position={[-1.4, 0.22, -1.4]} ref={prop4Ref}>
+            <mesh castShadow><cylinderGeometry args={[0.1, 0.1, 0.18, 6]} /><meshStandardMaterial color="#000" /></mesh>
+            <mesh position={[0, 0.08, 0]}><boxGeometry args={[1.8, 0.02, 0.12]} /><meshStandardMaterial color="#64748b" transparent opacity={0.7} /></mesh>
+          </group>
+
+        </group>      )}
+
+      {/* Render Piloted 3D Helicopter in Heli Pilot Mode */}
+      {cameraMode === "copter" && (
+        <group ref={heliGroupRef}>
+          <group rotation={[0, Math.PI, 0]}>
+            {/* Main Fuselage Cockpit (Steel grey body) */}
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[3, 2.5, 6]} />
+              <meshStandardMaterial color="#334155" roughness={0.35} metalness={0.75} />
+            </mesh>
+            
+            {/* Front Windshield Pane */}
+            <mesh position={[0, 0.4, 3.01]}>
+              <boxGeometry args={[2.5, 1.2, 0.1]} />
+              <meshStandardMaterial color="#0ea5e9" opacity={0.65} transparent roughness={0.1} />
+            </mesh>
+
+            {/* Tail Boom Assembly */}
+            <mesh position={[0, 0.6, -4.5]}>
+              <boxGeometry args={[0.8, 0.8, 4.5]} />
+              <meshStandardMaterial color="#334155" roughness={0.4} />
+            </mesh>
+
+            {/* Vertical Tail Stabilizer */}
+            <mesh position={[0, 1.8, -6.5]}>
+              <boxGeometry args={[0.3, 2, 1.2]} />
+              <meshStandardMaterial color="#334155" />
+            </mesh>
+
+            {/* Skids Landing Gear Left */}
+            <mesh position={[-1.2, -1.8, 0]} castShadow>
+              <boxGeometry args={[0.2, 0.2, 5.5]} />
+              <meshStandardMaterial color="#1e293b" metalness={0.9} />
+            </mesh>
+            <mesh position={[-1.2, -1.5, 1]} castShadow>
+              <boxGeometry args={[0.2, 0.6, 0.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+            <mesh position={[-1.2, -1.5, -1]} castShadow>
+              <boxGeometry args={[0.2, 0.6, 0.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+
+            {/* Skids Landing Gear Right */}
+            <mesh position={[1.2, -1.8, 0]} castShadow>
+              <boxGeometry args={[0.2, 0.2, 5.5]} />
+              <meshStandardMaterial color="#1e293b" metalness={0.9} />
+            </mesh>
+            <mesh position={[1.2, -1.5, 1]} castShadow>
+              <boxGeometry args={[0.2, 0.6, 0.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+            <mesh position={[1.2, -1.5, -1]} castShadow>
+              <boxGeometry args={[0.2, 0.6, 0.2]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+
+            {/* Rotor Shaft */}
+            <mesh position={[0, 1.6, 0]} castShadow>
+              <cylinderGeometry args={[0.2, 0.2, 0.8, 8]} />
+              <meshStandardMaterial color="#475569" metalness={0.8} />
+            </mesh>
+
+            {/* Main Rotors */}
+            <group ref={heliMainRotorRef} position={[0, 2.0, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[14, 0.05, 0.6]} />
+                <meshStandardMaterial color="#0f172a" />
+              </mesh>
+              <mesh rotation={[0, Math.PI / 2, 0]} castShadow>
+                <boxGeometry args={[14, 0.05, 0.6]} />
+                <meshStandardMaterial color="#0f172a" />
+              </mesh>
+            </group>
+
+            {/* Tail Rotor */}
+            <group ref={heliTailRotorRef} position={[0.45, 2.2, -6.7]}>
+              <mesh castShadow>
+                <boxGeometry args={[0.1, 3.0, 0.25]} />
+                <meshStandardMaterial color="#475569" />
+              </mesh>
+            </group>
+
+            {/* Underbody searchlight beacon */}
+            <spotLight 
+              color="#ffffff"
+              intensity={8}
+              angle={Math.PI / 7}
+              penumbra={0.3}
+              distance={200}
+              position={[0, -1.3, 1]}
+              castShadow
+            />
+          </group>
+        </group>
+      )}
+    </>
   );
 }

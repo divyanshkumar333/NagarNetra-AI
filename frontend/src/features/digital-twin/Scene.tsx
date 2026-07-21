@@ -14,19 +14,20 @@ export function Scene() {
   const isNight = timeOfDay === "night";
   const isSunset = timeOfDay === "sunset";
 
-  const ambientIntensity = isNight ? 0.2 : isSunset ? 0.6 : 1.0;
-  const directionalIntensity = isNight ? 0.5 : isSunset ? 1.2 : 2.0;
-  const sunPosition: [number, number, number] = isNight ? [0, -100, 0] : isSunset ? [100, 10, 100] : [50, 100, 50];
+  const ambientIntensity = isNight ? 0.35 : isSunset ? 0.75 : 1.1;
+  const directionalIntensity = isNight ? 0.45 : isSunset ? 1.4 : 2.2;
+  const sunPosition: [number, number, number] = isNight ? [-80, 100, -80] : isSunset ? [120, 12, 120] : [70, 140, 70];
 
   return (
     <>
-      <ambientLight intensity={ambientIntensity} color={isSunset ? "#ffedd5" : "#ffffff"} />
+      <ambientLight intensity={ambientIntensity} color={isNight ? "#0b1120" : isSunset ? "#ffbe98" : "#f1f5f9"} />
       <directionalLight 
         position={sunPosition} 
         intensity={directionalIntensity} 
         castShadow 
         shadow-mapSize={[2048, 2048]}
-        color={isSunset ? "#fdba74" : isNight ? "#38bdf8" : "#ffffff"}
+        shadow-bias={-0.0005}
+        color={isSunset ? "#ff7b00" : isNight ? "#0284c7" : "#ffffff"}
       />
 
       {isNight && (

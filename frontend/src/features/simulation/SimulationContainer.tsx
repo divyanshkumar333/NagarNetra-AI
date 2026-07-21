@@ -5,7 +5,7 @@ import { SimulationControlPanel } from "./SimulationControlPanel";
 import { SimulationTimeline } from "./SimulationTimeline";
 import { SimulationStatsModal } from "./SimulationStatsModal";
 import { ScenarioCard } from "./ScenarioCard";
-import { DashboardContainer } from "../dashboard/DashboardContainer";
+import { DashboardMini } from "../dashboard/DashboardMini";
 import { DigitalTwinContainer } from "../digital-twin/DigitalTwinContainer";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap } from "lucide-react";
@@ -63,10 +63,8 @@ export function SimulationContainer() {
             </div>
 
             {/* Right Col: Dashboard Mini */}
-            <div className="lg:col-span-3 h-full overflow-y-auto custom-scrollbar glass-card border border-border/50 rounded-xl p-2 relative">
-               <div className="transform scale-[0.85] origin-top">
-                 <DashboardContainer />
-               </div>
+            <div className="lg:col-span-3 h-full overflow-y-auto custom-scrollbar glass-card border border-border/50 rounded-xl relative p-4">
+               <DashboardMini />
             </div>
           </motion.div>
         )}
